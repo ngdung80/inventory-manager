@@ -1,0 +1,85 @@
+# =========================
+# Node.js & React .gitignore
+# =========================
+
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependency directories
+jspm_packages/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage directory
+coverage/
+
+# Temporary files
+.tmp/
+temp/
+
+# Cache
+.cache/
+.parcel-cache/
+.next/
+out/
+storybook-static/
+.fusebox/
+.nyc_output/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Misc
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Package lock files (optional, if you want to ignore them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
