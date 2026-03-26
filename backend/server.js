@@ -34,4 +34,20 @@ app.get('/api/health', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    
+    // Background job for Future Price Updates (Runs every minute)
+    setInterval(() => {
+        const today = new Date().toISOString().split('T')[0];
+        db.all("SELECT * FROM price_updates WHERE status = 'PENDING' AND effectiveDate <= ?", [today], (err, rows) => {
+            if (err) return console.error('Error fetching pending prices:', err);
+            rows.forEach(update => {
+                db.run("UPDATE products SET price = ? WHERE productId = ?", [update.newPrice, update.productId], (err) => {
+                    if (!err) {
+                        db.run("UPDATE price_updates SET status = 'APPLIED' WHERE id = ?", [update.id]);
+                        console.log(`Applied scheduled price update for product ${update.productId}: ${update.newPrice}`);
+                    }
+                });
+            });
+        });
+    }, 60000); // Check every 60 seconds
 });
