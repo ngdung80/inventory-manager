@@ -49,12 +49,14 @@ function verifyTables() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             productId INTEGER,
             userId INTEGER,
-            type TEXT, -- 'ADD', 'EDIT', 'REMOVE', 'SALE', 'PURCHASE'
+            type TEXT, -- 'ADD', 'EDIT', 'REMOVE', 'SALE', 'PURCHASE', 'INBOUND', 'OUTBOUND'
             quantity INTEGER,
             reason TEXT,
             createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            supplierId INTEGER,
             FOREIGN KEY(productId) REFERENCES products(id),
-            FOREIGN KEY(userId) REFERENCES users(id)
+            FOREIGN KEY(userId) REFERENCES users(id),
+            FOREIGN KEY(supplierId) REFERENCES suppliers(id)
         )`);
 
         // Wishlist Table (Customer Requests)
@@ -72,14 +74,16 @@ function verifyTables() {
         )`);
 
         // Products Table (Thành viên 2)
-        db.run(`CREATE TABLE IF NOT EXISTS products (
+         db.run(`CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             description TEXT,
             price REAL,
             stock INTEGER,
-            reorderLevel INTEGER DEFAULT 0
-        )`, (err) => {
+            reorderLevel INTEGER DEFAULT 0,
+            supplierId INTEGER,
+            FOREIGN KEY(supplierId) REFERENCES suppliers(id)
+         )`, (err) => {
             if (err) console.error("Create products error:", err.message);
             db.run("ALTER TABLE products ADD COLUMN reorderLevel INTEGER DEFAULT 0", (err) => {
                 if (err && !err.message.includes('duplicate column name')) {

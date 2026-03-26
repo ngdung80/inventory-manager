@@ -25,6 +25,10 @@ const Good = sequelize.define('Good', {
   reorderLevel: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+  },
+  supplierId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
   }
 }, {
   tableName: 'products',

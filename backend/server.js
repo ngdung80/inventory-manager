@@ -7,6 +7,10 @@ const { connectDB } = require('./db/sequelize'); // Initialize Sequelize
 dotenv.config();
 
 const app = express();
+const http = require('http').createServer(app);
+const { Server } = require('socket.io');
+const ObserverService = require('./services/ObserverService');
+
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
@@ -21,6 +25,8 @@ const orderRoutes = require('./routes/orders');
 const customerRoutes = require('./routes/customers');
 const reportRoutes = require('./routes/reports');
 const receiptRoutes = require('./routes/receipts');
+const inventoryRoutes = require('./routes/inventory');
+const salesRoutes = require('./routes/sales');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -30,6 +36,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/receipts', receiptRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/sales', salesRoutes);
 
 // Basic test route
 app.get('/api/health', (req, res) => {
@@ -40,11 +48,14 @@ app.get('/api/health', (req, res) => {
 const startServer = async () => {
     await connectDB(); // Connect Sequelize
     
-    const server = app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-    });
+     const io = new Server(http, { cors: { origin: '*' } });
+     ObserverService.attachEmitter(io);
 
-    server.on('error', (err) => {
+     http.listen(PORT, () => {
+         console.log(`Server is running on port ${PORT}`);
+     });
+
+     http.on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
             console.error(`ERROR: Port ${PORT} is already in use.`);
         } else {
