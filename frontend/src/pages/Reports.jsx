@@ -8,6 +8,7 @@ const Reports = () => {
   const token = localStorage.getItem('token');
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
+  const [movements, setMovements] = useState([]);
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -31,8 +32,16 @@ const Reports = () => {
       
       const resHist = await axios.get(`http://localhost:5000/api/orders${query}`, { headers: { Authorization: `Bearer ${token}` } });
       setHistory(resHist.data);
+
+      const resMove = await axios.get(`http://localhost:5000/api/reports/movements`, { headers: { Authorization: `Bearer ${token}` } });
+      console.log('Frontend Movements Data:', resMove.data);
+      setMovements(resMove.data);
+      
       setErrorMsg('');
-    } catch (err) {}
+    } catch (err) {
+      console.error('Frontend Fetch Error:', err);
+      setErrorMsg('Lỗi dữ liệu: Không thể tải lịch sử biến động. ' + (err.response?.data?.error || err.message));
+    }
   };
 
   const handleGenerate = () => {
@@ -110,7 +119,51 @@ const Reports = () => {
         </div>
 
         <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
-          <Clock size={20} color="var(--primary)" /> 2. Lịch sử luân chuyển (Movement Logs BR-08)
+          <TrendingUp size={20} color="#10B981" /> 2. Nhật ký biến động kho (Audit Trail)
+        </h2>
+        <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2.5rem' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                  <th style={{ padding: '0.75rem' }}>Thời gian</th>
+                  <th style={{ padding: '0.75rem' }}>Người thực hiện</th>
+                  <th style={{ padding: '0.75rem' }}>Sản phẩm</th>
+                  <th style={{ padding: '0.75rem' }}>Loại</th>
+                  <th style={{ padding: '0.75rem' }}>Số lượng</th>
+                  <th style={{ padding: '0.75rem' }}>Lý do/Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movements.length === 0 ? (
+                  <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có lịch sử biến động.</td></tr>
+                ) : movements.map(m => (
+                  <tr key={m.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{new Date(m.createdAt).toLocaleString()}</td>
+                    <td style={{ padding: '0.75rem' }}><strong>{m.username}</strong></td>
+                    <td style={{ padding: '0.75rem' }}>{m.productName}</td>
+                    <td style={{ padding: '0.75rem' }}>
+                      <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 
+                        m.type === 'ADD' ? '#D1FAE5' : 
+                        m.type === 'REMOVAL' ? '#FEE2E2' : 
+                        m.type === 'SALE' ? '#DBEAFE' : '#FEF3C7' 
+                      }}>
+                        {m.type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem', fontWeight: 'bold', color: m.quantity < 0 ? 'var(--danger)' : 'var(--success)' }}>
+                      {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
+                    </td>
+                    <td style={{ padding: '0.75rem', fontStyle: 'italic' }}>{m.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+          <Clock size={20} color="var(--primary)" /> 3. Lịch sử luân chuyển (Movement Logs BR-08)
         </h2>
         <div className="glass-panel" style={{ padding: '2rem' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>

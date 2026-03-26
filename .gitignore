@@ -82,4 +82,8 @@ storybook-static/
 # Package lock files (optional, if you want to ignore them)
 # package-lock.json
 # yarn.lock
-# pnpm-lock.yaml
+# Investigative scripts
+backend/db_dump.json
+backend/dump_db.js
+backend/verify_db.js
+tmp/

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { LogOut, User, Package, Users, ShoppingCart, BarChart, Truck } from 'lucide-react';
 
 const Dashboard = () => {
@@ -15,7 +16,17 @@ const Dashboard = () => {
 
   if (!user) return null;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.post('http://localhost:5000/api/auth/logout', {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (err) {
+      console.error('Logout error', err);
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
@@ -53,11 +64,11 @@ const Dashboard = () => {
         <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', cursor: 'pointer' }} onClick={() => navigate('/profile')}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-              {(user.username || user.fullName || '?').charAt(0).toUpperCase()}
+              {(user?.username || 'U').charAt(0).toUpperCase()}
             </div>
             <div>
-              <div style={{ fontWeight: '500' }}>{user.fullName || user.username || 'User'}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user.role} (Xem Hồ sơ)</div>
+              <div style={{ fontWeight: '500' }}>{user?.fullName || user?.username || 'User'}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user?.role || 'Staff'} (Xem Hồ sơ)</div>
             </div>
           </div>
           <button onClick={handleLogout} className="btn" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', border: '1px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-muted)' }}>
@@ -72,7 +83,7 @@ const Dashboard = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Tổng quan</h1>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Vai trò của bạn: <strong>{user.role}</strong>
+              Vai trò của bạn: <strong>{user?.role || 'Staff'}</strong>
             </div>
           </div>
           <p style={{ color: 'var(--text-muted)' }}>Chào mừng trở lại! Vui lòng chọn các chức năng ở menu bên trái.</p>

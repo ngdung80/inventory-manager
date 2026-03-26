@@ -9,7 +9,9 @@ const Inventory = () => {
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [formData, setFormData] = useState({ id: null, name: '', description: '', price: '', stock: '', reorderLevel: 0 });
+  const [removeData, setRemoveData] = useState({ productId: null, productName: '', quantity: '', reason: '' });
 
   useEffect(() => {
     if (!token) {
@@ -70,6 +72,24 @@ const Inventory = () => {
   const openAdd = () => {
     setFormData({ id: null, name: '', description: '', price: '', stock: '', reorderLevel: 0 });
     setShowModal(true);
+  };
+
+  const openRemove = (product) => {
+    setRemoveData({ productId: product.id, productName: product.name, quantity: '', reason: '' });
+    setShowRemoveModal(true);
+  };
+
+  const handleRemoveSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('http://localhost:5000/api/products/remove-goods', removeData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowRemoveModal(false);
+      fetchProducts();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Lỗi khi trừ kho');
+    }
   };
 
   return (
@@ -143,10 +163,13 @@ const Inventory = () => {
                         {p.reorderLevel} {p.stock <= p.reorderLevel && <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginLeft: '0.5rem', fontWeight: 'bold' }}>(Cần nhập thêm!)</span>}
                       </td>
                       <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn" onClick={() => openEdit(p)} style={{ padding: '0.5rem', backgroundColor: '#EEF2FF', color: 'var(--primary)' }}>
+                        <button className="btn" onClick={() => openEdit(p)} title="Chỉnh sửa" style={{ padding: '0.5rem', backgroundColor: '#EEF2FF', color: 'var(--primary)' }}>
                           <Edit2 size={16} />
                         </button>
-                        <button className="btn" onClick={() => handleDelete(p.id)} style={{ padding: '0.5rem', backgroundColor: '#FEE2E2', color: 'var(--danger)' }}>
+                        <button className="btn" onClick={() => openRemove(p)} title="Trừ kho (Hao hụt/Hỏng)" style={{ padding: '0.5rem', backgroundColor: '#FFF7ED', color: '#EA580C' }}>
+                          <Package size={16} />
+                        </button>
+                        <button className="btn" onClick={() => handleDelete(p.id)} title="Xóa vĩnh viễn" style={{ padding: '0.5rem', backgroundColor: '#FEE2E2', color: 'var(--danger)' }}>
                           <Trash2 size={16} />
                         </button>
                       </td>
@@ -197,6 +220,43 @@ const Inventory = () => {
           </div>
         </div>
       )}
+
+      <RemovalModal 
+        show={showRemoveModal} 
+        onClose={() => setShowRemoveModal(false)} 
+        data={removeData} 
+        setData={setRemoveData} 
+        onSubmit={handleRemoveSubmit} 
+      />
+    </div>
+  );
+};
+
+/* --- Slide in removal modal at the end --- */
+const RemovalModal = ({ show, onClose, data, setData, onSubmit }) => {
+  if (!show) return null;
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 51, padding: '1rem' }}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '2rem', backgroundColor: 'white' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#EA580C' }}>
+          Trừ kho hàng (Hao hụt/Hỏng)
+        </h2>
+        <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>Sản phẩm: <strong>{data.productName}</strong></p>
+        <form onSubmit={onSubmit}>
+          <div className="input-group">
+            <label>Số lượng giảm</label>
+            <input type="number" className="input-field" value={data.quantity} onChange={e => setData({...data, quantity: e.target.value})} placeholder="Vd: 5" required />
+          </div>
+          <div className="input-group">
+            <label>Lý do (Ghi chú audit)</label>
+            <textarea className="input-field" value={data.reason} onChange={e => setData({...data, reason: e.target.value})} placeholder="Vd: Hàng hết hạn, vỡ khi vận chuyển..." required style={{ minHeight: '80px', paddingTop: '0.5rem' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+            <button type="button" className="btn" onClick={onClose} style={{ flex: 1, backgroundColor: '#F3F4F6' }}>Hủy</button>
+            <button type="submit" className="btn" style={{ flex: 1, backgroundColor: '#EA580C', color: 'white' }}>Xác nhận trừ kho</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

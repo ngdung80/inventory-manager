@@ -3,15 +3,14 @@ const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const router = express.Router();
 
-const verifyToken = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).json({ error: 'No token' });
-    try {
-        req.user = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-        next();
-    } catch (err) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+const { verifyToken } = require('../middleware/auth');
+
+// Helper to log stock movement
+const logMovement = (productId, userId, type, quantity, reason) => {
+    db.run('INSERT INTO stock_movements (productId, userId, type, quantity, reason) VALUES (?, ?, ?, ?, ?)',
+        [productId, userId, type, quantity, reason], (err) => {
+            if (err) console.error('Audit Log Error (Orders):', err.message);
+        });
 };
 
 router.get('/', verifyToken, (req, res) => {
@@ -97,6 +96,8 @@ router.post('/', verifyToken, (req, res) => {
                                 if (type === 'SALE') {
                                     db.run('UPDATE products SET stock = stock - ? WHERE id = ?', [item.quantity, item.productId], (err) => {
                                         if (err) console.error("Update stock error", err);
+                                        // log movement
+                                        logMovement(item.productId, req.user.id, 'SALE', -item.quantity, `Order ID: ${orderId}`);
                                         completed++;
                                         if (completed === items.length) res.json({ id: orderId, type, totalAmount, status });
                                     });
@@ -125,6 +126,7 @@ router.put('/:id/invoice', verifyToken, (req, res) => {
         let completed = 0;
         items.forEach(item => {
             db.run('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.productId], () => {
+                logMovement(item.productId, req.user.id, 'PURCHASE', item.quantity, `Invoice for Order: ${req.params.id}`);
                 completed++;
                 if (completed === items.length) updateStatusOnly();
             });
