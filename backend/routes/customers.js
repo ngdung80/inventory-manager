@@ -3,16 +3,23 @@ const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const router = express.Router();
 
-const verifyToken = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).json({ error: 'No token' });
-    try {
-        req.user = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-        next();
-    } catch (err) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-};
+const { verifyToken } = require('../middleware/auth');
+
+// Add to wishlist (Customer Request)
+router.post('/wishlist', verifyToken, (req, res) => {
+    const { customerId, productId, quantity, notes } = req.body;
+    // salespersonId must be bound to the login user (req.user.id) to prevent spoofing
+    const salespersonId = req.user.id; 
+
+    db.run(
+        'INSERT INTO wishlist (customerId, productId, salespersonId, quantity, notes) VALUES (?, ?, ?, ?, ?)',
+        [customerId, productId, salespersonId, quantity, notes],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, message: 'Đã lưu yêu cầu khách hàng' });
+        }
+    );
+});
 
 router.get('/', verifyToken, (req, res) => {
     db.all('SELECT * FROM customers ORDER BY id DESC', [], (err, rows) => {

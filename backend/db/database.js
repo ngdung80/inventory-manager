@@ -21,7 +21,46 @@ function verifyTables() {
             password TEXT,
             role TEXT, -- admin, staff
             fullName TEXT,
-            email TEXT
+            email TEXT,
+            failed_attempts INTEGER DEFAULT 0,
+            is_locked BOOLEAN DEFAULT 0
+        )`, () => {
+            // Migration for existing users table
+            db.run("ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0", () => {});
+            db.run("ALTER TABLE users ADD COLUMN is_locked BOOLEAN DEFAULT 0", () => {});
+        });
+
+        // Token Blacklist Table
+        db.run(`CREATE TABLE IF NOT EXISTS token_blacklist (
+            token TEXT PRIMARY KEY,
+            expires_at DATETIME
+        )`);
+
+        // Stock Movements Table (Audit Trail)
+        db.run(`CREATE TABLE IF NOT EXISTS stock_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            productId INTEGER,
+            userId INTEGER,
+            type TEXT, -- 'ADD', 'EDIT', 'REMOVE', 'SALE', 'PURCHASE'
+            quantity INTEGER,
+            reason TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(productId) REFERENCES products(id),
+            FOREIGN KEY(userId) REFERENCES users(id)
+        )`);
+
+        // Wishlist Table (Customer Requests)
+        db.run(`CREATE TABLE IF NOT EXISTS wishlist (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customerId INTEGER,
+            productId INTEGER,
+            salespersonId INTEGER,
+            quantity INTEGER,
+            notes TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(customerId) REFERENCES customers(id),
+            FOREIGN KEY(productId) REFERENCES products(id),
+            FOREIGN KEY(salespersonId) REFERENCES users(id)
         )`);
 
         // Products Table (Thành viên 2)
