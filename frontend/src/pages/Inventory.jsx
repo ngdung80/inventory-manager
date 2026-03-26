@@ -9,7 +9,7 @@ const Inventory = () => {
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ id: null, name: '', description: '', price: '', stock: '' });
+  const [formData, setFormData] = useState({ id: null, name: '', description: '', price: '', stock: '', reorderLevel: 0 });
 
   useEffect(() => {
     if (!token) {
@@ -43,7 +43,7 @@ const Inventory = () => {
         });
       }
       setShowModal(false);
-      setFormData({ id: null, name: '', description: '', price: '', stock: '' });
+      setFormData({ id: null, name: '', description: '', price: '', stock: '', reorderLevel: 0 });
       fetchProducts();
     } catch (err) {
       alert('Lỗi khi lưu sản phẩm');
@@ -63,18 +63,18 @@ const Inventory = () => {
   };
 
   const openEdit = (product) => {
-    setFormData(product);
+    setFormData({ ...product, reorderLevel: product.reorderLevel || 0 });
     setShowModal(true);
   };
 
   const openAdd = () => {
-    setFormData({ id: null, name: '', description: '', price: '', stock: '' });
+    setFormData({ id: null, name: '', description: '', price: '', stock: '', reorderLevel: 0 });
     setShowModal(true);
   };
 
   return (
     <div style={{ minHeight: '100vh', padding: '2rem', backgroundColor: 'var(--bg-color)' }}>
-      <div className="container" style={{ maxWidth: '1000px' }}>
+      <div className="container" style={{ maxWidth: '1100px' }}>
         <button className="btn" onClick={() => navigate('/dashboard')} style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', backgroundColor: 'white' }}>
           <ArrowLeft size={16} /> Quay lại Tổng quan
         </button>
@@ -107,9 +107,9 @@ const Inventory = () => {
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
                   <th style={{ padding: '1rem' }}>Mã Sp</th>
                   <th style={{ padding: '1rem' }}>Tên mặt hàng</th>
-                  <th style={{ padding: '1rem' }}>Mô tả</th>
                   <th style={{ padding: '1rem' }}>Giá (VND)</th>
                   <th style={{ padding: '1rem' }}>Tồn kho</th>
+                  <th style={{ padding: '1rem' }}>Mức tái đặt hàng</th>
                   <th style={{ padding: '1rem' }}>Thao tác</th>
                 </tr>
               </thead>
@@ -120,15 +120,27 @@ const Inventory = () => {
                   </tr>
                 ) : (
                   products.map(p => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', backgroundColor: p.stock <= p.reorderLevel ? '#FFFBF0' : 'transparent' }}>
                       <td style={{ padding: '1rem' }}>#{p.id}</td>
-                      <td style={{ padding: '1rem', fontWeight: '500' }}>{p.name}</td>
-                      <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{p.description}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: '500' }}>{p.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.description}</div>
+                      </td>
                       <td style={{ padding: '1rem' }}>{p.price.toLocaleString()} đ</td>
                       <td style={{ padding: '1rem' }}>
-                        <span style={{ padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.875rem', backgroundColor: p.stock > 10 ? '#D1FAE5' : '#FEF3C7', color: p.stock > 10 ? 'var(--success)' : '#D97706' }}>
+                        <span style={{ 
+                          padding: '0.25rem 0.75rem', 
+                          borderRadius: '1rem', 
+                          fontSize: '0.875rem', 
+                          backgroundColor: p.stock > p.reorderLevel ? '#D1FAE5' : '#FEE2E2', 
+                          color: p.stock > p.reorderLevel ? 'var(--success)' : 'var(--danger)',
+                          fontWeight: 'bold'
+                        }}>
                           {p.stock}
                         </span>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        {p.reorderLevel} {p.stock <= p.reorderLevel && <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginLeft: '0.5rem', fontWeight: 'bold' }}>(Cần nhập thêm!)</span>}
                       </td>
                       <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem' }}>
                         <button className="btn" onClick={() => openEdit(p)} style={{ padding: '0.5rem', backgroundColor: '#EEF2FF', color: 'var(--primary)' }}>
@@ -171,6 +183,11 @@ const Inventory = () => {
                   <label>Tồn kho</label>
                   <input type="number" className="input-field" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} required />
                 </div>
+              </div>
+              <div className="input-group">
+                <label>Mức tái đặt hàng (Reorder Level)</label>
+                <input type="number" className="input-field" value={formData.reorderLevel} onChange={e => setFormData({...formData, reorderLevel: e.target.value})} required />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Hệ thống sẽ chặn đặt hàng sỉ nếu Tồn kho &gt; Mức này (BR-06).</p>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" className="btn" onClick={() => setShowModal(false)} style={{ flex: 1, backgroundColor: '#F3F4F6' }}>Hủy</button>

@@ -16,7 +16,7 @@ const verifyToken = (req, res, next) => {
 
 router.get('/', verifyToken, (req, res) => {
     const { startDate, endDate, type, status } = req.query;
-    let query = 'SELECT o.*, c.name as customerName, s.name as supplierName FROM orders o LEFT JOIN customers c ON o.customerId = c.id LEFT JOIN suppliers s ON o.supplierId = s.id WHERE 1=1';
+    let query = 'SELECT o.*, c.name as customerName, s.name as supplierName, s.contact as supplierContact FROM orders o LEFT JOIN customers c ON o.customerId = c.id LEFT JOIN suppliers s ON o.supplierId = s.id WHERE 1=1';
     let params = [];
     
     if (startDate && endDate) {
@@ -49,40 +49,70 @@ router.get('/:id/items', verifyToken, (req, res) => {
 router.post('/', verifyToken, (req, res) => {
     const { type, customerId, supplierId, totalAmount, status, items } = req.body;
     
-    db.run(
-        'INSERT INTO orders (type, customerId, supplierId, totalAmount, status) VALUES (?, ?, ?, ?, ?)',
-        [type, customerId || null, supplierId || null, totalAmount, status || 'COMPLETED'],
-        function (err) {
+    // BR-06: Check Reorder Level for PURCHASE orders
+    if (type === 'PURCHASE' && items && items.length > 0) {
+        const productIds = items.map(i => i.productId);
+        const query = `SELECT id, name, stock, reorderLevel FROM products WHERE id IN (${productIds.join(',')})`;
+        
+        db.all(query, [], (err, products) => {
             if (err) return res.status(500).json({ error: err.message });
-            const orderId = this.lastID;
             
-            if (items && items.length > 0) {
-                let completed = 0;
-                items.forEach(item => {
-                    db.run('INSERT INTO order_items (orderId, productId, quantity, price) VALUES (?, ?, ?, ?)', 
-                        [orderId, item.productId, item.quantity, item.price], 
-                        function(err) {
-                            if (err) console.error("Insert error", err);
-                            
-                            if (type === 'SALE') {
-                                db.run('UPDATE products SET stock = stock - ? WHERE id = ?', [item.quantity, item.productId], (err) => {
-                                    if (err) console.error("Update stock error", err);
+            const violations = [];
+            items.forEach(item => {
+                const p = products.find(prod => prod.id === item.productId);
+                if (p && p.stock > p.reorderLevel) {
+                    violations.push(`${p.name} (Stock: ${p.stock}, Reorder Level: ${p.reorderLevel})`);
+                }
+            });
+            
+            if (violations.length > 0) {
+                return res.status(400).json({ 
+                    error: 'Business Rule BR-06 Violation: Stock level is already sufficient for some items.', 
+                    details: violations 
+                });
+            }
+            
+            saveOrder();
+        });
+    } else {
+        saveOrder();
+    }
+
+    function saveOrder() {
+        db.run(
+            'INSERT INTO orders (type, customerId, supplierId, totalAmount, status) VALUES (?, ?, ?, ?, ?)',
+            [type, customerId || null, supplierId || null, totalAmount, status || 'COMPLETED'],
+            function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+                const orderId = this.lastID;
+                
+                if (items && items.length > 0) {
+                    let completed = 0;
+                    items.forEach(item => {
+                        db.run('INSERT INTO order_items (orderId, productId, quantity, price) VALUES (?, ?, ?, ?)', 
+                            [orderId, item.productId, item.quantity, item.price], 
+                            function(err) {
+                                if (err) console.error("Insert error", err);
+                                
+                                if (type === 'SALE') {
+                                    db.run('UPDATE products SET stock = stock - ? WHERE id = ?', [item.quantity, item.productId], (err) => {
+                                        if (err) console.error("Update stock error", err);
+                                        completed++;
+                                        if (completed === items.length) res.json({ id: orderId, type, totalAmount, status });
+                                    });
+                                } else {
                                     completed++;
                                     if (completed === items.length) res.json({ id: orderId, type, totalAmount, status });
-                                });
-                            } else {
-                                // For PURCHASE, delay stock update until Invoice Generation
-                                completed++;
-                                if (completed === items.length) res.json({ id: orderId, type, totalAmount, status });
+                                }
                             }
-                        }
-                    );
-                });
-            } else {
-                res.json({ id: orderId, type, totalAmount, status });
+                        );
+                    });
+                } else {
+                    res.json({ id: orderId, type, totalAmount, status });
+                }
             }
-        }
-    );
+        );
+    }
 });
 
 // Generate Invoice (Complete Purchase Order & Increase Stock)

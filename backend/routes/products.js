@@ -33,23 +33,23 @@ router.get('/', verifyToken, (req, res) => {
 
 // Add product
 router.post('/', verifyToken, (req, res) => {
-    const { name, description, price, stock } = req.body;
+    const { name, description, price, stock, reorderLevel } = req.body;
     db.run(
-        'INSERT INTO products (name, description, price, stock) VALUES (?, ?, ?, ?)',
-        [name, description, price, stock],
+        'INSERT INTO products (name, description, price, stock, reorderLevel) VALUES (?, ?, ?, ?, ?)',
+        [name, description, price, stock, reorderLevel || 0],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, name, description, price, stock });
+            res.json({ id: this.lastID, name, description, price, stock, reorderLevel: reorderLevel || 0 });
         }
     );
 });
 
 // Update product (Price or Replace/Full update)
 router.put('/:id', verifyToken, (req, res) => {
-    const { name, description, price, stock } = req.body;
+    const { name, description, price, stock, reorderLevel } = req.body;
     db.run(
-        'UPDATE products SET name = ?, description = ?, price = ?, stock = ? WHERE id = ?',
-        [name, description, price, stock, req.params.id],
+        'UPDATE products SET name = ?, description = ?, price = ?, stock = ?, reorderLevel = ? WHERE id = ?',
+        [name, description, price, stock, reorderLevel, req.params.id],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ message: 'Product updated' });

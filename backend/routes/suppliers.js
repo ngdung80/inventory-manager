@@ -23,11 +23,16 @@ router.get('/', verifyToken, (req, res) => {
 
 router.post('/', verifyToken, (req, res) => {
     const { name, contact } = req.body;
+    console.log(`[SUPPLIER] POST / creating: ${name}`);
     db.run(
         'INSERT INTO suppliers (name, contact) VALUES (?, ?)',
         [name, contact],
         function (err) {
-            if (err) return res.status(500).json({ error: err.message });
+            if (err) {
+                console.error('[SUPPLIER] INSERT error:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
+            console.log(`[SUPPLIER] Created with ID: ${this.lastID}`);
             res.json({ id: this.lastID, name, contact });
         }
     );

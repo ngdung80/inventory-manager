@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, ShoppingCart, FileText, Plus, Minus } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const Purchases = () => {
   const navigate = useNavigate();
@@ -40,6 +42,12 @@ const Purchases = () => {
   };
 
   const addToCart = (product) => {
+    // BR-06: The system must check if the stock is below the "ReorderLevel" before allowing a new order to be placed.
+    if (product.stock > product.reorderLevel) {
+      alert(`BR-06: Tồn kho (${product.stock}) hiện đang cao hơn mức tái đặt hàng (${product.reorderLevel}). Không cho phép đặt hàng sỉ!`);
+      return;
+    }
+
     const existing = cart.find(item => item.product.id === product.id);
     if (existing) setCart(cart.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     else setCart([...cart, { product, quantity: 1 }]);
@@ -64,7 +72,10 @@ const Purchases = () => {
       setCart([]); setSelectedSupplierId('');
       fetchPendingOrders();
       setActiveTab('INVOICE'); // Chuyển sang Invoice ngay
-    } catch (err) { alert('Lỗi: ' + err.message); }
+    } catch (err) { 
+      const errMsg = err.response?.data?.error || err.message;
+      alert('Lỗi: ' + errMsg); 
+    }
   };
 
   const selectOrder = async (orderId) => {
@@ -93,18 +104,47 @@ const Purchases = () => {
     } catch (err) { alert('Lỗi: ' + err.message); }
   };
 
+  const [showPrintModal, setShowPrintModal] = useState(false);
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById('print-area');
+    if (!element) return;
+    
+    // Use html2canvas to capture the element as an image
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    // Create jsPDF instance
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`DonDatHang_PO${selectedOrder.id}.pdf`);
+  };
+
   return (
     <div style={{ minHeight: '100vh', padding: '2rem', backgroundColor: 'var(--bg-color)' }}>
+      {/* CSS for print mode */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #print-area, #print-area * { visibility: visible; }
+          #print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
       <div className="container" style={{ maxWidth: '1200px' }}>
-        <button className="btn" onClick={() => navigate('/dashboard')} style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', backgroundColor: 'white' }}>
+        <button className="btn no-print" onClick={() => navigate('/dashboard')} style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', backgroundColor: 'white' }}>
           <ArrowLeft size={16} /> Quay lại Tổng quan
         </button>
         
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+        <h1 className="no-print" style={{ fontSize: '1.875rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
           <ShoppingCart color="var(--primary)" /> Luồng Nhập Hàng (Purchasing Flow)
         </h1>
 
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+        <div className="no-print" style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
           <button className={`btn ${activeTab === 'PLACE_ORDER' ? 'btn-primary' : ''}`} onClick={() => setActiveTab('PLACE_ORDER')} style={{ flex: 1, padding: '1rem', fontSize: '1.1rem' }}>
             1. Đặt Hàng (Place Order)
           </button>
@@ -114,16 +154,37 @@ const Purchases = () => {
         </div>
 
         {activeTab === 'PLACE_ORDER' && (
-          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+          <div className="no-print" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
             <div className="glass-panel" style={{ flex: 2, padding: '1.5rem', minWidth: '350px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Sản phẩm cần đặt</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Sản phẩm cần đặt (BR-06)</h2>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>*Chỉ cho phép đặt khi Stock ≤ ReorderLevel</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                 {products.map(p => (
-                  <div key={p.id} style={{ border: '1px solid var(--border)', padding: '1rem', borderRadius: '0.5rem', backgroundColor: 'white' }}>
+                  <div key={p.id} style={{ 
+                    border: '1px solid var(--border)', 
+                    padding: '1rem', 
+                    borderRadius: '0.5rem', 
+                    backgroundColor: p.stock <= p.reorderLevel ? 'white' : '#F9FAFB',
+                    opacity: p.stock <= p.reorderLevel ? 1 : 0.7
+                  }}>
                     <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{p.name}</div>
-                    <div style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Giá nhập: {p.price.toLocaleString()} đ</div>
-                    <button className="btn btn-primary" style={{ width: '100%', padding: '0.5rem', fontSize: '0.9rem' }} onClick={() => addToCart(p)}>
-                      Chọn mua
+                    <div style={{ color: p.stock <= p.reorderLevel ? 'red' : 'green', fontSize: '0.85rem', marginBottom: '0.25rem', fontWeight: '500' }}>
+                      Stock: {p.stock} / Reorder: {p.reorderLevel}
+                    </div>
+                    <div style={{ color: 'var(--primary)', marginBottom: '0.75rem', fontSize: '0.9rem' }}>Giá nhập: {p.price.toLocaleString()} đ</div>
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.5rem', 
+                        fontSize: '0.9rem',
+                        backgroundColor: p.stock <= p.reorderLevel ? 'var(--primary)' : '#6B7280'
+                      }} 
+                      onClick={() => addToCart(p)}
+                    >
+                      {p.stock <= p.reorderLevel ? 'Chọn mua' : 'Đủ tồn kho'}
                     </button>
                   </div>
                 ))}
@@ -136,7 +197,7 @@ const Purchases = () => {
                 <label>Nhà cung cấp (Supplier)</label>
                 <select className="input-field" value={selectedSupplierId} onChange={e => setSelectedSupplierId(e.target.value)}>
                   <option value="">-- Chọn Nhà cung cấp --</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name} - {s.phone}</option>)}
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name} - {s.contact}</option>)}
                 </select>
               </div>
               <div style={{ borderTop: '1px solid var(--border)', padding: '1rem 0', minHeight: '150px' }}>
@@ -163,7 +224,7 @@ const Purchases = () => {
         )}
 
         {activeTab === 'INVOICE' && (
-          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+          <div className="no-print" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
             <div className="glass-panel" style={{ flex: 1, padding: '1.5rem', minWidth: '350px' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Phiếu Chờ (Pending Orders)</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '500px', overflowY: 'auto' }}>
@@ -177,18 +238,30 @@ const Purchases = () => {
                       border: selectedOrder?.id === o.id ? '2px solid var(--primary)' : '1px solid var(--border)',
                       backgroundColor: selectedOrder?.id === o.id ? '#EEF2FF' : 'white',
                       cursor: 'pointer',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}
                   >
-                    <div style={{ fontWeight: 'bold', color: selectedOrder?.id === o.id ? 'var(--primary)' : 'black' }}>
-                      #{o.id} - {o.supplierName || 'Nhà cung cấp'}
+                    <div>
+                      <div style={{ fontWeight: 'bold', color: selectedOrder?.id === o.id ? 'var(--primary)' : 'black' }}>
+                        #{o.id} - {o.supplierName || 'Nhà cung cấp'}
+                      </div>
+                      <div style={{ color: 'var(--primary)', marginTop: '0.25rem', fontWeight: '500' }}>
+                        {o.totalAmount.toLocaleString()} đ
+                      </div>
                     </div>
-                    <div style={{ color: 'var(--primary)', marginTop: '0.5rem', fontWeight: '500' }}>
-                      {o.totalAmount.toLocaleString()} đ
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                      Ngày: {o.createdAt.split(' ')[0]}
-                    </div>
+                    {selectedOrder?.id === o.id && (
+                      <button 
+                        className="btn" 
+                        onClick={(e) => { e.stopPropagation(); setShowPrintModal(true); }}
+                        style={{ padding: '0.4rem', backgroundColor: 'white', border: '1px solid var(--border)' }}
+                        title="Xem bản in Đơn đặt hàng"
+                      >
+                        <FileText size={16} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -211,7 +284,7 @@ const Purchases = () => {
                       <tr style={{ borderBottom: '2px solid var(--border)' }}>
                         <th style={{ padding: '0.75rem' }}>Mặt hàng</th>
                         <th style={{ padding: '0.75rem' }}>Số lượng</th>
-                        <th style={{ padding: '0.75rem' }}>Đơn giá</th>
+                        <th style={{ padding: '0.75rem' }}> đơn giá</th>
                         <th style={{ padding: '0.75rem' }}>Thành tiền</th>
                       </tr>
                     </thead>
@@ -242,6 +315,96 @@ const Purchases = () => {
           </div>
         )}
       </div>
+
+      {showPrintModal && selectedOrder && (
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="glass-panel" style={{ width: '90%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', backgroundColor: 'white', position: 'relative' }}>
+            <button 
+              onClick={() => setShowPrintModal(false)}
+              style={{ position: 'absolute', right: '1rem', top: '1rem', border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}
+            >
+              ×
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Xem trước Đơn Đặt Hàng</h2>
+              <button className="btn btn-primary" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={18} /> Xuất PDF Đơn Hàng
+              </button>
+            </div>
+
+            <div id="print-area" style={{ border: '1px solid #eee', padding: '40px', backgroundColor: 'white', color: 'black', fontFamily: 'serif' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid black', paddingBottom: '20px', marginBottom: '30px' }}>
+                <div>
+                  <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>HỆ THỐNG QUẢN LÝ KHO</h1>
+                  <p style={{ margin: '5px 0' }}>Địa chỉ: 123 Đường ABC, Hà Nội</p>
+                  <p style={{ margin: '5px 0' }}>Hotline: 0123 456 789</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#333', margin: 0 }}>ĐƠN ĐẶT HÀNG</h1>
+                  <p style={{ fontSize: '18px', fontWeight: 'bold', margin: '10px 0' }}>Số: PO-{selectedOrder.id}</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '30px' }}>
+                <div>
+                  <h3 style={{ borderBottom: '1px solid grey', paddingBottom: '5px' }}>THÔNG TIN NHÀ CUNG CẤP</h3>
+                  <p><strong>Tên:</strong> {selectedOrder.supplierName}</p>
+                  <p><strong>Liên hệ:</strong> {selectedOrder.supplierContact || 'N/A'}</p>
+                </div>
+                <div>
+                  <h3 style={{ borderBottom: '1px solid grey', paddingBottom: '5px' }}>THÔNG TIN GIAO HÀNG</h3>
+                  <p><strong>Ngày đặt hàng:</strong> {selectedOrder.createdAt}</p>
+                  <p><strong>Kho nhận:</strong> Kho Trung Tâm</p>
+                </div>
+              </div>
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '40px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f2f2f2' }}>
+                    <th style={{ border: '1px solid black', padding: '10px', textAlign: 'center' }}>STT</th>
+                    <th style={{ border: '1px solid black', padding: '10px' }}>Mô tả sản phẩm</th>
+                    <th style={{ border: '1px solid black', padding: '10px', textAlign: 'center' }}>Số lượng</th>
+                    <th style={{ border: '1px solid black', padding: '10px', textAlign: 'right' }}>Đơn giá</th>
+                    <th style={{ border: '1px solid black', padding: '10px', textAlign: 'right' }}>Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderItems.map((item, idx) => (
+                    <tr key={item.id}>
+                      <td style={{ border: '1px solid black', padding: '10px', textAlign: 'center' }}>{idx + 1}</td>
+                      <td style={{ border: '1px solid black', padding: '10px' }}>{item.name}</td>
+                      <td style={{ border: '1px solid black', padding: '10px', textAlign: 'center' }}>{item.quantity}</td>
+                      <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right' }}>{item.price.toLocaleString()}</td>
+                      <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right' }}>{(item.quantity * item.price).toLocaleString()} đ</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan="4" style={{ border: '1px solid black', padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>TỔNG CỘNG:</td>
+                    <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right', fontWeight: 'bold', fontSize: '18px' }}>
+                      {selectedOrder.totalAmount.toLocaleString()} đ
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '50px', textAlign: 'center', marginTop: '60px' }}>
+                <div>
+                  <p style={{ fontWeight: 'bold' }}>ĐẠI DIỆN BÊN MUA</p>
+                  <p style={{ fontSize: '12px', fontStyle: 'italic', marginBottom: '60px' }}>(Ký và ghi rõ họ tên)</p>
+                  <p>........................................</p>
+                </div>
+                <div>
+                   <p style={{ fontWeight: 'bold' }}>ĐẠI DIỆN NHÀ CUNG CẤP</p>
+                   <p style={{ fontSize: '12px', fontStyle: 'italic', marginBottom: '60px' }}>(Ký và ghi rõ họ tên)</p>
+                   <p>........................................</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

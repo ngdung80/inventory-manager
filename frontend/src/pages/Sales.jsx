@@ -133,6 +133,13 @@ const Sales = () => {
               </select>
             </div>
 
+            {selectedCustomerId && customers.find(c => c.id == selectedCustomerId)?.requests && (
+              <div style={{ padding: '0.75rem', backgroundColor: '#FEF3C7', color: '#92400E', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem', border: '1px solid #FCD34D' }}>
+                <strong style={{ display: 'block', marginBottom: '0.25rem' }}>📌 Yêu cầu của khách hàng:</strong>
+                {customers.find(c => c.id == selectedCustomerId).requests}
+              </div>
+            )}
+
             <div style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '1rem 0', minHeight: '150px' }}>
               {cart.map(item => (
                 <div key={item.product.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

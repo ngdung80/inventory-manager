@@ -12,6 +12,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION:', reason);
+});
+
 function verifyTables() {
     db.serialize(() => {
         // Users Table (Thành viên 1)
@@ -30,8 +38,16 @@ function verifyTables() {
             name TEXT,
             description TEXT,
             price REAL,
-            stock INTEGER
-        )`);
+            stock INTEGER,
+            reorderLevel INTEGER DEFAULT 0
+        )`, (err) => {
+            if (err) console.error("Create products error:", err.message);
+            db.run("ALTER TABLE products ADD COLUMN reorderLevel INTEGER DEFAULT 0", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                    console.error("Migrate products error:", err.message);
+                }
+            });
+        });
 
         // Suppliers Table (Thành viên 3)
         db.run(`CREATE TABLE IF NOT EXISTS suppliers (
@@ -58,10 +74,15 @@ function verifyTables() {
             totalAmount REAL,
             status TEXT,
             createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`, () => {
+        )`, (err) => {
+            if (err) console.error("Create orders error:", err.message);
             // Tự động nâng cấp (Migration) thêm cột cho CSDL cũ nếu tồn tại
-            db.run("ALTER TABLE orders ADD COLUMN customerId INTEGER", () => {});
-            db.run("ALTER TABLE orders ADD COLUMN supplierId INTEGER", () => {});
+            db.run("ALTER TABLE orders ADD COLUMN customerId INTEGER", (err) => {
+                if (err && !err.message.includes('duplicate column name')) console.error("Migrate orders error 1:", err.message);
+            });
+            db.run("ALTER TABLE orders ADD COLUMN supplierId INTEGER", (err) => {
+                if (err && !err.message.includes('duplicate column name')) console.error("Migrate orders error 2:", err.message);
+            });
         });
 
         // Order Items Table for Receipt items
