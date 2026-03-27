@@ -3,7 +3,16 @@ const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const router = express.Router();
 
-const { verifyToken } = require('../middleware/auth');
+const verifyToken = (req, res, next) => {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).json({ error: 'No token' });
+    try {
+        req.user = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+};
 
 router.get('/', verifyToken, (req, res) => {
     db.all('SELECT * FROM suppliers ORDER BY id DESC', [], (err, rows) => {
@@ -14,16 +23,11 @@ router.get('/', verifyToken, (req, res) => {
 
 router.post('/', verifyToken, (req, res) => {
     const { name, contact } = req.body;
-    console.log(`[SUPPLIER] POST / creating: ${name}`);
     db.run(
         'INSERT INTO suppliers (name, contact) VALUES (?, ?)',
         [name, contact],
         function (err) {
-            if (err) {
-                console.error('[SUPPLIER] INSERT error:', err.message);
-                return res.status(500).json({ error: err.message });
-            }
-            console.log(`[SUPPLIER] Created with ID: ${this.lastID}`);
+            if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, name, contact });
         }
     );

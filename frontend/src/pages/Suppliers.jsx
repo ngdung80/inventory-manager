@@ -32,10 +32,7 @@ const Suppliers = () => {
       }
       setShowModal(false);
       fetchSuppliers();
-    } catch (err) { 
-      console.error('Supplier Save Error:', err);
-      alert('Lỗi lưu nhà cung cấp: ' + (err.response?.data?.error || err.message)); 
-    }
+    } catch (err) { alert('Lỗi lưu nhà cung cấp'); }
   };
 
   const handleDelete = async (id) => {

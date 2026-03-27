@@ -79,6 +79,8 @@ storybook-static/
 # Yarn Integrity file
 .yarn-integrity
 
+*.db
+
 # Package lock files (optional, if you want to ignore them)
 # package-lock.json
 # yarn.lock

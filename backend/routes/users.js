@@ -4,11 +4,22 @@ const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const router = express.Router();
 
-const { verifyToken } = require('../middleware/auth');
+// Middleware to verify token
+const verifyToken = (req, res, next) => {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).json({ error: 'No token provided' });
+    try {
+        const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+};
 
 // Update Profile
 router.put('/profile', verifyToken, (req, res) => {
-    const { fullName, email } = req.body; // Only extract safe fields
+    const { fullName, email } = req.body;
     db.run(
         'UPDATE users SET fullName = ?, email = ? WHERE id = ?',
         [fullName, email, req.user.id],

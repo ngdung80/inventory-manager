@@ -74,10 +74,17 @@ function verifyTables() {
         // Products Table (Thành viên 2)
         db.run(`CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            productId TEXT UNIQUE,
             name TEXT,
+            category TEXT,
             description TEXT,
             price REAL,
             stock INTEGER,
+<<<<<<< HEAD
+            expiryDate TEXT,
+            supplierId TEXT,
+=======
+>>>>>>> ecb4fba843b408190d8a1a534d96a4f8f4336258
             reorderLevel INTEGER DEFAULT 0
         )`, (err) => {
             if (err) console.error("Create products error:", err.message);
@@ -86,6 +93,14 @@ function verifyTables() {
                     console.error("Migrate products error:", err.message);
                 }
             });
+<<<<<<< HEAD
+            db.run("ALTER TABLE products ADD COLUMN productId TEXT", (err) => {});
+            db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_products_productid ON products(productId)", (err) => {});
+            db.run("ALTER TABLE products ADD COLUMN category TEXT", (err) => {});
+            db.run("ALTER TABLE products ADD COLUMN expiryDate TEXT", (err) => {});
+            db.run("ALTER TABLE products ADD COLUMN supplierId TEXT", (err) => {});
+=======
+>>>>>>> ecb4fba843b408190d8a1a534d96a4f8f4336258
         });
 
         // Suppliers Table (Thành viên 3)
@@ -93,6 +108,18 @@ function verifyTables() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             contact TEXT
+        )`);
+
+        // Price History & Future Price Updates
+        db.run(`CREATE TABLE IF NOT EXISTS price_updates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            productId TEXT,
+            oldPrice REAL,
+            newPrice REAL,
+            effectiveDate TEXT,
+            status TEXT DEFAULT 'APPLIED',
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(productId) REFERENCES products(productId)
         )`);
 
         // Customers Table (Thành viên 4)

@@ -3,27 +3,16 @@ const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const router = express.Router();
 
-const { verifyToken } = require('../middleware/auth');
-
-// Get Stock Movement History (Audit Trail)
-router.get('/movements', verifyToken, (req, res) => {
-    const query = `
-        SELECT sm.*, p.name as productName, u.username 
-        FROM stock_movements sm 
-        LEFT JOIN products p ON sm.productId = p.id 
-        LEFT JOIN users u ON sm.userId = u.id 
-        ORDER BY sm.createdAt DESC 
-        LIMIT 100
-    `;
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            console.error('Fetch Movements Error:', err.message);
-            return res.status(500).json({ error: err.message });
-        }
-        console.log(`Backend: Returning ${rows.length} movement records`);
-        res.json(rows);
-    });
-});
+const verifyToken = (req, res, next) => {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).json({ error: 'No token' });
+    try {
+        req.user = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+};
 
 router.get('/summary', verifyToken, (req, res) => {
     const { startDate, endDate } = req.query;
