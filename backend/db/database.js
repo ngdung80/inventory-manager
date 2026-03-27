@@ -80,8 +80,11 @@ function verifyTables() {
             description TEXT,
             price REAL,
             stock INTEGER,
+<<<<<<< HEAD
             expiryDate TEXT,
             supplierId TEXT,
+=======
+>>>>>>> ecb4fba843b408190d8a1a534d96a4f8f4336258
             reorderLevel INTEGER DEFAULT 0
         )`, (err) => {
             if (err) console.error("Create products error:", err.message);
@@ -90,11 +93,14 @@ function verifyTables() {
                     console.error("Migrate products error:", err.message);
                 }
             });
+<<<<<<< HEAD
             db.run("ALTER TABLE products ADD COLUMN productId TEXT", (err) => {});
             db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_products_productid ON products(productId)", (err) => {});
             db.run("ALTER TABLE products ADD COLUMN category TEXT", (err) => {});
             db.run("ALTER TABLE products ADD COLUMN expiryDate TEXT", (err) => {});
             db.run("ALTER TABLE products ADD COLUMN supplierId TEXT", (err) => {});
+=======
+>>>>>>> ecb4fba843b408190d8a1a534d96a4f8f4336258
         });
 
         // Suppliers Table (Thành viên 3)
